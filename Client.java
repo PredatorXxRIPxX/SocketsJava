@@ -1,30 +1,44 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
-import java.io.IOException;
+import java.util.Scanner;
 
 public class Client {
     public static void main(String[] args) {
-        try (Socket socket = new Socket("localhost", 3000);
-                BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-
-            System.out.println("Connected to server on port 3000");
-
-            while (true) {
-                System.out.println(in.readLine());
-                if (in.readLine()=="Enter your commands:") {
-                    String message = input.readLine();  
-                    out.println(message);
-                }else{
-                    System.out.println(in.readLine());
+        try {
+            Socket socket = new Socket("localhost", 3000);
+            
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            
+            Scanner scanner = new Scanner(System.in);
+            
+            Thread receiveThread = new Thread(() -> {
+                try {
+                    String message;
+                    while ((message = in.readLine()) != null) {
+                        System.out.println(message);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                 
+            });
+            receiveThread.start();
+            
+            while (true) {
+                String message = scanner.nextLine();
+                out.println(message);
+                
+                if (message.equalsIgnoreCase("exit")) {
+                    break;
+                }
             }
+            
+            scanner.close();
+            socket.close();
+            
         } catch (IOException e) {
-            System.out.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

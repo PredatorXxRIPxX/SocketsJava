@@ -1,94 +1,97 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
-    static ConcurrentHashMap<String, Socket> clients = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, ClientHandler> clients = new ConcurrentHashMap<>();
     
     public static void main(String[] args) {
-        try (ServerSocket serverSocket = new ServerSocket(3000)) {
-            System.out.println("Server is listening on port 3000");
+        try {
+            ServerSocket server = new ServerSocket(3000);
+            System.out.println("Server started on port 3000");
+            
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                new ClientHandler(clientSocket).start();
+                Socket socket = server.accept();
+                new ClientHandler(socket).start();
             }
-        } catch (Exception e) {
-            System.out.println("An error occurred: " + e.getMessage());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-
+    
     static class ClientHandler extends Thread {
-        private Socket client;
-        private String name;
-
+        private Socket socket;
+        private String username;
+        private BufferedReader in;
+        private PrintWriter out;
+        
         public ClientHandler(Socket socket) {
-            this.client = socket;
+            this.socket = socket;
         }
         
         @Override
         public void run() {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                 PrintWriter out = new PrintWriter(client.getOutputStream(), true)) {
+            try {
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out = new PrintWriter(socket.getOutputStream(), true);
                 
-                out.println("Welcome to the server, Please enter your name:");
-                String name;
-                do {
-                    name = in.readLine();
-                    if (name == null || name.isEmpty()) {
-                        out.println("Name cannot be empty. Please enter a valid name:");
-                        out.println("Enter your commands:");
-                    } else if (clients.containsKey(name)) {
-                        out.println("This name is already taken, please enter another name:");
-                        out.println("Enter your commands:");
-                    } else {
-                        this.name = name;
-                        clients.put(name, client);
-                        System.out.println(name + " has joined the server");
-                        out.println("Hello " + name + ", welcome to the server!");
+                while (true) {
+                    out.println("Please enter your username:");
+                    String potentialUsername = in.readLine();
+                    
+                    if (potentialUsername == null || potentialUsername.trim().isEmpty()) {
+                        out.println("Username cannot be empty.");
+                        continue;
                     }
-                } while (name == null || name.isEmpty() || clients.containsKey(name));
-                out.println("Welcome " + name + "!");
-                out.println("To send a message to all clients, type: @all <message>");
-                out.println("To send a message to a specific client, type: @<client-name> <message>");
-                out.println("To quit, type: @quit");
-                out.println("Enter your commands:");
-
-                String message;
-                while ((message = in.readLine()) != null) {
-                    if (message.equals("@quit")) {
-                        break;
-                    } else if (message.startsWith("@all")) {
-                        String[] messageParts = message.split(" ", 2);
-                        String messageToSend = messageParts[1];
-                        for (String clientName : clients.keySet()) {
-                            if (!clientName.equals(name)) {
-                                PrintWriter clientOut = new PrintWriter(clients.get(clientName).getOutputStream(), true);
-                                clientOut.println(name + ": " + messageToSend);
-                            }
-                        }
-                    } else if (message.startsWith("@")) {
-                        String[] messageParts = message.split(" ", 2);
-                        String clientName = messageParts[0].substring(1);
-                        String messageToSend = messageParts[1];
-                        if (clients.containsKey(clientName)) {
-                            PrintWriter clientOut = new PrintWriter(clients.get(clientName).getOutputStream(), true);
-                            clientOut.println(name + ": " + messageToSend);
-                        } else {
-                            out.println("Client " + clientName + " not found");
-                        }
-                    } else {
-                        out.println("Invalid command");
+                    
+                    if (clients.containsKey(potentialUsername)) {
+                        out.println("Username already taken. Please choose another.");
+                        continue;
+                    }
+                    
+                    username = potentialUsername;
+                    clients.put(username, this);
+                    out.println("Welcome, " + username + "!");
+                    break;
+                }
+                
+                ClientHandler friendHandler = null;
+                while (friendHandler == null) {
+                    out.println("Enter the username of the friend you want to chat with:");
+                    String friendName = in.readLine();
+                    
+                    friendHandler = clients.get(friendName);
+                    if (friendHandler == null) {
+                        out.println("User not found. Please try again.");
                     }
                 }
                 
-                clients.remove(name);
-                client.close();
+                out.println("Connected to " + friendHandler.username);
+                friendHandler.out.println(username + " has connected to chat with you.");
                 
-            } catch (Exception e) {
-                System.out.println("Error handling client: " + e.getMessage());
+                String message;
+                while ((message = in.readLine()) != null) {
+                    if (message.equalsIgnoreCase("exit")) {
+                        out.println("You have left the chat.");
+                        friendHandler.out.println(username + " has left the chat.");
+                        break;
+                    }
+                    
+                    friendHandler.out.println(username + ": " + message);
+                }
+                
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (username != null) {
+                    clients.remove(username);
+                }
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
