@@ -13,15 +13,15 @@ public class Client {
 
             System.out.println("Connected to server on port 3000");
 
-            System.out.print("Enter a number to calculate its factorial: ");
-
-            String message = input.readLine();
-
-            out.println(message);
-
-            String serverResponse;
-            while ((serverResponse = in.readLine()) != null) {
-                System.out.println("Server: " + serverResponse);
+            while (true) {
+                System.out.println(in.readLine());
+                if (in.readLine()=="Enter your commands:") {
+                    String message = input.readLine();  
+                    out.println(message);
+                }else{
+                    System.out.println(in.readLine());
+                }
+                 
             }
         } catch (IOException e) {
             System.out.println("An error occurred: " + e.getMessage());
