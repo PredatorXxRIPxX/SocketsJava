@@ -6,13 +6,13 @@ public class Client {
     public static void main(String[] args) {
         try {
             Socket socket = new Socket("localhost", 3000);
-            
+
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            
+
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            
+
             Scanner scanner = new Scanner(System.in);
-            
+
             Thread receiveThread = new Thread(() -> {
                 try {
                     String message;
@@ -24,19 +24,19 @@ public class Client {
                 }
             });
             receiveThread.start();
-            
+
             while (true) {
                 String message = scanner.nextLine();
                 out.println(message);
-                
+
                 if (message.equalsIgnoreCase("exit")) {
                     break;
                 }
             }
-            
+
             scanner.close();
             socket.close();
-            
+
         } catch (IOException e) {
             e.printStackTrace();
         }

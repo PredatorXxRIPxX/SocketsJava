@@ -35,8 +35,8 @@ public class Server {
             try {
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 out = new PrintWriter(socket.getOutputStream(), true);
-                
-                while (true) {
+            
+                while (username != null ) {
                     out.println("Please enter your username:");
                     String potentialUsername = in.readLine();
                     
